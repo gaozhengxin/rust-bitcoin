@@ -388,10 +388,21 @@ impl Transaction {
     /// with-witness consensus-serialized size.
     #[inline]
     pub fn get_weight(&self) -> usize {
+        self.get_size_scaled(4)
+    }
+
+    /// Gets the consensus-serialized size of this transaction.
+    #[inline]
+    pub fn get_size(&self) -> usize {
+        self.get_size_scaled(1)
+    }
+
+    /// Internal utility function for get_{size,weight}
+    fn get_size_scaled(&self, scale_factor: usize) -> usize {
         let mut input_weight = 0;
         let mut inputs_with_witnesses = 0;
         for input in &self.input {
-            input_weight += 4*(32 + 4 + 4 + // outpoint (32+4) + nSequence
+            input_weight += scale_factor*(32 + 4 + 4 + // outpoint (32+4) + nSequence
                 VarInt(input.script_sig.len() as u64).len() +
                 input.script_sig.len());
             if !input.witness.is_empty() {
@@ -418,9 +429,9 @@ impl Transaction {
         // lock_time
         4;
         if inputs_with_witnesses == 0 {
-            non_input_size * 4 + input_weight
+            non_input_size * scale_factor + input_weight
         } else {
-            non_input_size * 4 + input_weight + self.input.len() - inputs_with_witnesses + 2
+            non_input_size * scale_factor + input_weight + self.input.len() - inputs_with_witnesses + 2
         }
     }
 
@@ -652,7 +663,7 @@ mod tests {
                    Err(ParseOutPointError::Txid(Txid::from_hex("5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c945X").unwrap_err())));
         assert_eq!(OutPoint::from_str("5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456:lol"),
                    Err(ParseOutPointError::Vout(u32::from_str("lol").unwrap_err())));
- 
+
         assert_eq!(OutPoint::from_str("5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456:42"),
                    Ok(OutPoint{
                        txid: Txid::from_hex("5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456").unwrap(),
