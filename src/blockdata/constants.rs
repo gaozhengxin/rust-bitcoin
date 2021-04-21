@@ -26,7 +26,7 @@ use hashes::sha256d;
 use blockdata::opcodes;
 use blockdata::script;
 use blockdata::transaction::{OutPoint, Transaction, TxOut, TxIn};
-use blockdata::block::{Block, BlockHeader};
+use blockdata::block::{Block, BlockHeaderOld};
 use network::constants::Network;
 use util::uint::Uint256;
 
@@ -102,40 +102,40 @@ pub fn genesis_block(network: Network) -> Block {
     match network {
         Network::Bitcoin => {
             Block {
-                header: BlockHeader {
+                header: BlockHeaderOld {
                     version: 1,
                     prev_blockhash: Default::default(),
                     merkle_root,
                     time: 1231006505,
                     bits: 0x1d00ffff,
-                    nonce: 2083236893
-                },
+                    nonce: 2083236893,
+                }.into(),
                 txdata: txdata
             }
         }
         Network::Testnet => {
             Block {
-                header: BlockHeader {
+                header: BlockHeaderOld {
                     version: 1,
                     prev_blockhash: Default::default(),
                     merkle_root,
                     time: 1296688602,
                     bits: 0x1d00ffff,
-                    nonce: 414098458
-                },
+                    nonce: 414098458,
+                }.into(),
                 txdata: txdata
             }
         }
         Network::Regtest => {
             Block {
-                header: BlockHeader {
+                header: BlockHeaderOld {
                     version: 1,
                     prev_blockhash: Default::default(),
                     merkle_root,
                     time: 1296688602,
                     bits: 0x207fffff,
-                    nonce: 2
-                },
+                    nonce: 2,
+                }.into(),
                 txdata: txdata
             }
         }

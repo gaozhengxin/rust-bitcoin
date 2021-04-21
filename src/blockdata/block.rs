@@ -21,12 +21,16 @@
 //!
 
 use util;
+use std::io;
+use std::default::Default;
+use std::convert::From;
 use util::Error::{BlockBadTarget, BlockBadProofOfWork};
 use util::hash::{BitcoinHash, bitcoin_merkle_root};
 use hashes::{Hash, HashEngine};
 use hash_types::{Wtxid, BlockHash, TxMerkleNode, WitnessMerkleNode, WitnessCommitment};
 use util::uint::Uint256;
-use consensus::encode::Encodable;
+use consensus::encode;
+use consensus::encode::{Encodable, Decodable};
 use network::constants::Network;
 use blockdata::transaction::Transaction;
 use blockdata::constants::max_target;
@@ -49,6 +53,54 @@ pub struct BlockHeader {
     pub bits: u32,
     /// The nonce, selected to obtain a low enough blockhash
     pub nonce: u32,
+    /// The acc_checkpoint.
+    pub acc_checkpoint: BlockHash,
+}
+
+/// An old version block header, which contains all the block's information except
+/// the actual transactions for version 1, 2, 3, 4
+#[derive(Copy, PartialEq, Eq, Clone, Debug)]
+pub struct BlockHeaderOld {
+    /// The protocol version. Should always be 1.
+    pub version: u32,
+    /// Reference to the previous block in the chain
+    pub prev_blockhash: BlockHash,
+    /// The root hash of the merkle tree of transactions in the block
+    pub merkle_root: TxMerkleNode,
+    /// The timestamp of the block, as claimed by the miner
+    pub time: u32,
+    /// The target value below which the blockhash must lie, encoded as a
+    /// a float (with well-defined rounding, of course)
+    pub bits: u32,
+    /// The nonce, selected to obtain a low enough blockhash
+    pub nonce: u32,
+}
+
+impl From<BlockHeaderOld> for BlockHeader {
+    fn from(item: BlockHeaderOld) -> BlockHeader {
+        BlockHeader {
+            version: item.version,
+            prev_blockhash: item.prev_blockhash,
+            merkle_root: item.merkle_root,
+            time: item.time,
+            bits: item.bits,
+            nonce: item.nonce,
+            acc_checkpoint: Default::default()
+        }
+    }
+}
+
+impl From<BlockHeader> for BlockHeaderOld {
+    fn from(item: BlockHeader) -> BlockHeaderOld {
+        BlockHeaderOld {
+            version: item.version,
+            prev_blockhash: item.prev_blockhash,
+            merkle_root: item.merkle_root,
+            time: item.time,
+            bits: item.bits,
+            nonce: item.nonce,
+        }
+    }
 }
 
 /// A Bitcoin block, which is a collection of transactions with an attached
@@ -211,8 +263,17 @@ impl BlockHeader {
 
 impl BitcoinHash<BlockHash> for BlockHeader {
     fn bitcoin_hash(&self) -> BlockHash {
-        use consensus::encode::serialize;
-        BlockHash::hash(&serialize(self))
+        match self.version {
+            1 | 2 | 3 | 4 => {
+                use consensus::encode::serialize;
+                let data = &serialize(self);
+                BlockHash::hash(&(data.get(0..data.len() - 64).unwrap()))
+            }
+            _ => {
+                use consensus::encode::serialize;
+                BlockHash::hash(&serialize(self))
+            }
+        }
     }
 }
 
@@ -222,10 +283,46 @@ impl BitcoinHash<BlockHash> for Block {
     }
 }
 
-impl_consensus_encoding!(BlockHeader, version, prev_blockhash, merkle_root, time, bits, nonce);
+impl_consensus_encoding!(BlockHeaderOld, version, prev_blockhash, merkle_root, time, bits, nonce);
 impl_consensus_encoding!(Block, header, txdata);
-serde_struct_impl!(BlockHeader, version, prev_blockhash, merkle_root, time, bits, nonce);
+serde_struct_impl!(BlockHeaderOld, version, prev_blockhash, merkle_root, time, bits, nonce);
+serde_struct_impl!(BlockHeader, version, prev_blockhash, merkle_root, time, bits, nonce, acc_checkpoint);
 serde_struct_impl!(Block, header, txdata);
+
+impl Encodable for BlockHeader {
+    fn consensus_encode<S: io::Write>(
+        &self,
+        mut s: S,
+    ) -> Result<usize, encode::Error> {
+        let old: BlockHeaderOld = (*self).into();
+        let len = &old.consensus_encode(&mut s)?;
+        let newheader: BlockHeader = old.into();
+        match newheader.version {
+            1 | 2 | 3 | 4 => {
+                Ok(*len)
+            }
+            _ => {Ok(len + self.acc_checkpoint.consensus_encode(&mut s)?)}
+        }
+    }
+}
+impl Decodable for BlockHeader {
+    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
+        Ok({
+            let old: BlockHeaderOld = Decodable::consensus_decode(&mut d)?;
+            match old.version {
+                1 | 2 | 3 | 4 => {
+                    let header: BlockHeader = old.into();
+                    header
+                }
+                _ => {
+                    let mut header: BlockHeader = old.into();
+                    header.acc_checkpoint = Decodable::consensus_decode(d)?;
+                    header
+                }
+            }
+        })
+    }
+}
 
 #[cfg(test)]
 mod tests {
