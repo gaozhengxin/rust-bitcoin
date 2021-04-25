@@ -372,7 +372,12 @@ impl Decodable for Block {
         Ok({
             let core: BlockCore = Decodable::consensus_decode(&mut d)?;
             let mut block: Block = core.into();
-            block.extra = Decodable::consensus_decode(d)?;
+            let extra = Decodable::consensus_decode(d);
+            let extra = match extra {
+                Ok(rv) => rv,
+                Err(error) => Default::default(),
+            };
+            block.extra = extra;
             block
         })
     }
