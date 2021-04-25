@@ -110,8 +110,40 @@ pub struct Block {
     /// The block header
     pub header: BlockHeader,
     /// List of transactions contained in the block
-    pub txdata: Vec<Transaction>
+    pub txdata: Vec<Transaction>,
+    /// extra data
+    pub extra: Vec<u8>
 }
+
+/// A Bitcoin blockcore
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub struct BlockCore {
+    /// The block header
+    pub header: BlockHeader,
+    /// List of transactions contained in the block
+    pub txdata: Vec<Transaction>,
+}
+
+impl From<BlockCore> for Block {
+    fn from (item: BlockCore) -> Block {
+        Block {
+            header: item.header,
+            txdata: item.txdata,
+            extra: Default::default()
+        }
+    }
+}
+
+impl From<Block> for BlockCore {
+    fn from (item: Block) -> BlockCore {
+        BlockCore {
+            header: item.header,
+            txdata: item.txdata,
+        }
+    }
+}
+
+
 
 impl Block {
     /// check if merkle root of header matches merkle root of the transaction list
@@ -284,10 +316,11 @@ impl BitcoinHash<BlockHash> for Block {
 }
 
 impl_consensus_encoding!(BlockHeaderOld, version, prev_blockhash, merkle_root, time, bits, nonce);
-impl_consensus_encoding!(Block, header, txdata);
+impl_consensus_encoding!(BlockCore, header, txdata);
 serde_struct_impl!(BlockHeaderOld, version, prev_blockhash, merkle_root, time, bits, nonce);
 serde_struct_impl!(BlockHeader, version, prev_blockhash, merkle_root, time, bits, nonce, acc_checkpoint);
-serde_struct_impl!(Block, header, txdata);
+serde_struct_impl!(BlockCore, header, txdata);
+serde_struct_impl!(Block, header, txdata, extra);
 
 impl Encodable for BlockHeader {
     fn consensus_encode<S: io::Write>(
@@ -320,6 +353,27 @@ impl Decodable for BlockHeader {
                     header
                 }
             }
+        })
+    }
+}
+
+impl Encodable for Block {
+    fn consensus_encode<S: io::Write>(
+        &self,
+        mut s: S,
+    ) -> Result<usize, encode::Error> {
+        let core: BlockCore = (self.clone()).into();
+        let len = &core.consensus_encode(&mut s)?;
+        {Ok(len + self.extra.consensus_encode(&mut s)?)}
+    }
+}
+impl Decodable for Block {
+    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
+        Ok({
+            let core: BlockCore = Decodable::consensus_decode(&mut d)?;
+            let mut block: Block = core.into();
+            block.extra = Decodable::consensus_decode(d)?;
+            block
         })
     }
 }

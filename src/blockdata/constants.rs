@@ -110,7 +110,8 @@ pub fn genesis_block(network: Network) -> Block {
                     bits: 0x1d00ffff,
                     nonce: 2083236893,
                 }.into(),
-                txdata: txdata
+                txdata: txdata,
+                extra: Default::default()
             }
         }
         Network::Testnet => {
@@ -123,7 +124,8 @@ pub fn genesis_block(network: Network) -> Block {
                     bits: 0x1d00ffff,
                     nonce: 414098458,
                 }.into(),
-                txdata: txdata
+                txdata: txdata,
+                extra: Default::default()
             }
         }
         Network::Regtest => {
@@ -136,7 +138,8 @@ pub fn genesis_block(network: Network) -> Block {
                     bits: 0x207fffff,
                     nonce: 2,
                 }.into(),
-                txdata: txdata
+                txdata: txdata,
+                extra: Default::default()
             }
         }
     }
