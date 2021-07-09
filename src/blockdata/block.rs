@@ -30,12 +30,13 @@ use consensus::encode::Encodable;
 use network::constants::Network;
 use blockdata::transaction::Transaction;
 use blockdata::constants::max_target;
+use consensus::{Decodable};
 
 /// A block header, which contains all the block's information except
 /// the actual transactions
 #[derive(Copy, PartialEq, Eq, Clone, Debug)]
 pub struct BlockHeader {
-    /// The protocol version. Should always be 1.
+    /// The protocol version.
     pub version: u32,
     /// Reference to the previous block in the chain
     pub prev_blockhash: BlockHash,
@@ -52,11 +53,28 @@ pub struct BlockHeader {
     pub version_mtp: i32,
     /// Merkle Tree Proof Hash
     pub mtp_hash_value: MTPHash,
-    //pub mtpHashData: BlockHash, // TODO
     /// Reserved field 0
     pub reserved0: Reserved,
     /// Reserved field 1
     pub reserved1: Reserved,
+}
+
+/// A block header version 536875008(0x20001000)
+#[derive(Copy, PartialEq, Eq, Clone, Debug)]
+pub struct BlockHeaderNonMTP {
+    /// The protocol version.
+    pub version: u32,
+    /// Reference to the previous block in the chain
+    pub prev_blockhash: BlockHash,
+    /// The root hash of the merkle tree of transactions in the block
+    pub merkle_root: TxMerkleNode,
+    /// The timestamp of the block, as claimed by the miner
+    pub time: u32,
+    /// The target value below which the blockhash must lie, encoded as a
+    /// a float (with well-defined rounding, of course)
+    pub bits: u32,
+    /// The nonce, selected to obtain a low enough blockhash
+    pub nonce: u32,
 }
 
 /// A Bitcoin block, which is a collection of transactions with an attached
@@ -139,8 +157,24 @@ impl BlockHeader {
     /// Return the block hash.
     pub fn block_hash(&self) -> BlockHash {
         let mut engine = BlockHash::engine();
-        self.consensus_encode(&mut engine).expect("engines don't error");
-        BlockHash::from_engine(engine)
+        match self.version {
+            65538 => {
+                let non_mtp = BlockHeaderNonMTP {
+                    version: self.version,
+                    prev_blockhash: self.prev_blockhash,
+                    merkle_root: self.merkle_root,
+                    time: self.time,
+                    bits: self.bits,
+                    nonce: self.nonce,
+                };
+                non_mtp.consensus_encode(&mut engine).expect("engines don't error");
+                BlockHash::from_engine(engine)
+            },
+            _ => {
+                self.consensus_encode(&mut engine).expect("engines don't error");
+                BlockHash::from_engine(engine)
+            },
+        }
     }
 
     /// Computes the target [0, T] that a blockhash must land in to be valid
@@ -214,9 +248,67 @@ impl BlockHeader {
     }
 }
 
-impl_consensus_encoding!(BlockHeader, version, prev_blockhash, merkle_root, time, bits, nonce, version_mtp, mtp_hash_value, reserved0, reserved1);
+impl ::consensus::Encodable for BlockHeader {
+    #[inline]
+    fn consensus_encode<S: ::std::io::Write>(
+        &self,
+        mut s: S,
+    ) -> Result<usize, ::consensus::encode::Error> {
+        let mut len = 0;
+        len += self.version.consensus_encode(&mut s)?;
+        len += self.prev_blockhash.consensus_encode(&mut s)?;
+        len += self.merkle_root.consensus_encode(&mut s)?;
+        len += self.time.consensus_encode(&mut s)?;
+        len += self.bits.consensus_encode(&mut s)?;
+        len += self.nonce.consensus_encode(&mut s)?;
+        len += self.version_mtp.consensus_encode(&mut s)?;
+        len += self.mtp_hash_value.consensus_encode(&mut s)?;
+        len += self.reserved0.consensus_encode(&mut s)?;
+        len += self.reserved1.consensus_encode(&mut s)?;
+        Ok(len)
+    }
+}
+
+impl ::consensus::Decodable for BlockHeader {
+    #[inline]
+    fn consensus_decode<D: ::std::io::Read>(
+        mut d: D,
+    ) -> Result<BlockHeader, ::consensus::encode::Error> {
+        let version = Decodable::consensus_decode(&mut d)?;
+        println!("is version 65538: {:?}", (version == 65538));
+        match version {
+            65538 => Ok(BlockHeader {
+                version: version,
+                prev_blockhash: Decodable::consensus_decode(&mut d)?,
+                merkle_root: Decodable::consensus_decode(&mut d)?,
+                time: Decodable::consensus_decode(&mut d)?,
+                bits: Decodable::consensus_decode(&mut d)?,
+                nonce: Decodable::consensus_decode(&mut d)?,
+                version_mtp: Default::default(),
+                mtp_hash_value: Default::default(),
+                reserved0: Default::default(),
+                reserved1: Default::default(),
+            }),
+            _ => Ok(BlockHeader {
+                version: version,
+                prev_blockhash: Decodable::consensus_decode(&mut d)?,
+                merkle_root: Decodable::consensus_decode(&mut d)?,
+                time: Decodable::consensus_decode(&mut d)?,
+                bits: Decodable::consensus_decode(&mut d)?,
+                nonce: Decodable::consensus_decode(&mut d)?,
+                version_mtp: Decodable::consensus_decode(&mut d)?,
+                mtp_hash_value: Decodable::consensus_decode(&mut d)?,
+                reserved0: Decodable::consensus_decode(&mut d)?,
+                reserved1: Decodable::consensus_decode(&mut d)?,
+            }),
+        }
+    }
+}
+
+impl_consensus_encoding!(BlockHeaderNonMTP, version, prev_blockhash, merkle_root, time, bits, nonce);
 impl_consensus_encoding!(Block, header, txdata);
 serde_struct_impl!(BlockHeader, version, prev_blockhash, merkle_root, time, bits, nonce, version_mtp, mtp_hash_value, reserved0, reserved1);
+serde_struct_impl!(BlockHeaderNonMTP, version, prev_blockhash, merkle_root, time, bits, nonce);
 serde_struct_impl!(Block, header, txdata);
 
 #[cfg(test)]
