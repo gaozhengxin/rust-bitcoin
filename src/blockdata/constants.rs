@@ -110,7 +110,11 @@ pub fn genesis_block(network: Network) -> Block {
                     merkle_root,
                     time: 1231006505,
                     bits: 0x1d00ffff,
-                    nonce: 2083236893
+                    nonce: 2083236893,
+                    version_mtp: Default::default(),
+                    mtp_hash_value: Default::default(),
+                    reserved0: Default::default(),
+                    reserved1: Default::default(),
                 },
                 txdata: txdata
             }
@@ -123,7 +127,11 @@ pub fn genesis_block(network: Network) -> Block {
                     merkle_root,
                     time: 1296688602,
                     bits: 0x1d00ffff,
-                    nonce: 414098458
+                    nonce: 414098458,
+                    version_mtp: Default::default(),
+                    mtp_hash_value: Default::default(),
+                    reserved0: Default::default(),
+                    reserved1: Default::default(),
                 },
                 txdata: txdata
             }
@@ -136,7 +144,11 @@ pub fn genesis_block(network: Network) -> Block {
                     merkle_root,
                     time: 1296688602,
                     bits: 0x207fffff,
-                    nonce: 2
+                    nonce: 2,
+                    version_mtp: Default::default(),
+                    mtp_hash_value: Default::default(),
+                    reserved0: Default::default(),
+                    reserved1: Default::default(),
                 },
                 txdata: txdata
             }

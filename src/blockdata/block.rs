@@ -24,7 +24,7 @@ use util;
 use util::Error::{BlockBadTarget, BlockBadProofOfWork};
 use util::hash::bitcoin_merkle_root;
 use hashes::{Hash, HashEngine};
-use hash_types::{Wtxid, BlockHash, TxMerkleNode, WitnessMerkleNode, WitnessCommitment};
+use hash_types::{Wtxid, BlockHash, TxMerkleNode, WitnessMerkleNode, WitnessCommitment, MTPHash, Reserved};
 use util::uint::Uint256;
 use consensus::encode::Encodable;
 use network::constants::Network;
@@ -48,6 +48,15 @@ pub struct BlockHeader {
     pub bits: u32,
     /// The nonce, selected to obtain a low enough blockhash
     pub nonce: u32,
+    /// Merkle Tree Proof version
+    pub version_mtp: i32,
+    /// Merkle Tree Proof Hash
+    pub mtp_hash_value: MTPHash,
+    //pub mtpHashData: BlockHash, // TODO
+    /// Reserved field 0
+    pub reserved0: Reserved,
+    /// Reserved field 1
+    pub reserved1: Reserved,
 }
 
 /// A Bitcoin block, which is a collection of transactions with an attached
@@ -205,9 +214,9 @@ impl BlockHeader {
     }
 }
 
-impl_consensus_encoding!(BlockHeader, version, prev_blockhash, merkle_root, time, bits, nonce);
+impl_consensus_encoding!(BlockHeader, version, prev_blockhash, merkle_root, time, bits, nonce, version_mtp, mtp_hash_value, reserved0, reserved1);
 impl_consensus_encoding!(Block, header, txdata);
-serde_struct_impl!(BlockHeader, version, prev_blockhash, merkle_root, time, bits, nonce);
+serde_struct_impl!(BlockHeader, version, prev_blockhash, merkle_root, time, bits, nonce, version_mtp, mtp_hash_value, reserved0, reserved1);
 serde_struct_impl!(Block, header, txdata);
 
 #[cfg(test)]

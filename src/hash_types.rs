@@ -48,6 +48,8 @@ hash_newtype!(WPubkeyHash, hash160::Hash, 20, doc="SegWit version of a public ke
 hash_newtype!(WScriptHash, sha256::Hash, 32, doc="SegWit version of a Bitcoin Script bytecode hash.");
 
 hash_newtype!(TxMerkleNode, sha256d::Hash, 32, doc="A hash of the Merkle tree branch or root for transactions");
+hash_newtype!(MTPHash, sha256d::Hash, 32, doc="A hash of the Merkle tree proof");
+hash_newtype!(Reserved, sha256d::Hash, 32, doc="A hash of the reserved");
 hash_newtype!(WitnessMerkleNode, sha256d::Hash, 32, doc="A hash corresponding to the Merkle tree root for witness data");
 hash_newtype!(WitnessCommitment, sha256d::Hash, 32, doc="A hash corresponding to the witness structure commitment in the coinbase transaction");
 hash_newtype!(XpubIdentifier, hash160::Hash, 20, doc="XpubIdentifier as defined in BIP-32.");
@@ -60,5 +62,7 @@ impl_hashencode!(Wtxid);
 impl_hashencode!(SigHash);
 impl_hashencode!(BlockHash);
 impl_hashencode!(TxMerkleNode);
+impl_hashencode!(MTPHash);
+impl_hashencode! (Reserved);
 impl_hashencode!(WitnessMerkleNode);
 impl_hashencode!(FilterHash);
