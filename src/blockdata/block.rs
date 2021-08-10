@@ -30,6 +30,7 @@ use network::constants::Network;
 use blockdata::transaction::Transaction;
 use blockdata::constants::max_target;
 use consensus::encode::{Encodable, Decodable};
+use VarInt;
 
 /// A block header, which contains all the block's information except
 /// the actual transactions
@@ -150,6 +151,21 @@ impl Block {
         );
         bitcoin_merkle_root(hashes).into()
     }
+
+    /// Get the weight of the block
+    pub fn get_weight(&self) -> usize {
+        // XXX use WITNESS_SCALE_FACTOR when rebasing to master
+        let base_weight = 4 * (80 + VarInt(self.txdata.len() as u64).len());
+        let txs_weight: usize = self.txdata.iter().map(|tx| tx.get_weight()).sum();
+        base_weight + txs_weight
+    }
+
+    /// Get the size of the block
+    pub fn get_size(&self) -> usize {
+        let base_size = 80 + VarInt(self.txdata.len() as u64).len();
+        let txs_size: usize = self.txdata.iter().map(|tx| tx.get_size()).sum();
+        base_size + txs_size
+    }
 }
 
 impl BlockHeader {
@@ -157,7 +173,7 @@ impl BlockHeader {
     pub fn block_hash(&self) -> BlockHash {
         let mut engine = BlockHash::engine();
         match self.version {
-            65538 => {
+            2|65538|65536|536870914|536870912 => {
                 let non_mtp = BlockHeaderNonMTP {
                     version: self.version,
                     prev_blockhash: self.prev_blockhash,
@@ -260,6 +276,9 @@ impl ::consensus::Encodable for BlockHeader {
         len += self.time.consensus_encode(&mut s)?;
         len += self.bits.consensus_encode(&mut s)?;
         len += self.nonce.consensus_encode(&mut s)?;
+        if (self.version == 2) {
+            return Ok(len)
+        }
         len += self.version_mtp.consensus_encode(&mut s)?;
         len += self.mtp_hash_value.consensus_encode(&mut s)?;
         len += self.reserved0.consensus_encode(&mut s)?;
@@ -274,9 +293,8 @@ impl ::consensus::Decodable for BlockHeader {
         mut d: D,
     ) -> Result<BlockHeader, ::consensus::encode::Error> {
         let version = Decodable::consensus_decode(&mut d)?;
-        println!("is version 65538: {:?}", (version == 65538));
         match version {
-            65538 => Ok(BlockHeader {
+            2|65538|65536|536870914|536870912 => Ok(BlockHeader {
                 version: version,
                 prev_blockhash: Decodable::consensus_decode(&mut d)?,
                 merkle_root: Decodable::consensus_decode(&mut d)?,
