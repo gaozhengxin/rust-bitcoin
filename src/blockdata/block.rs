@@ -22,15 +22,14 @@
 
 use util;
 use util::Error::{BlockBadTarget, BlockBadProofOfWork};
-use util::hash::bitcoin_merkle_root;
+use util::hash::{BitcoinHash, bitcoin_merkle_root};
 use hashes::{Hash, HashEngine};
 use hash_types::{Wtxid, BlockHash, TxMerkleNode, WitnessMerkleNode, WitnessCommitment, MTPHash, Reserved};
 use util::uint::Uint256;
-use consensus::encode::Encodable;
 use network::constants::Network;
 use blockdata::transaction::Transaction;
 use blockdata::constants::max_target;
-use consensus::{Decodable};
+use consensus::encode::{Encodable, Decodable};
 
 /// A block header, which contains all the block's information except
 /// the actual transactions
@@ -302,6 +301,19 @@ impl ::consensus::Decodable for BlockHeader {
                 reserved1: Decodable::consensus_decode(&mut d)?,
             }),
         }
+    }
+}
+
+impl BitcoinHash<BlockHash> for BlockHeader {
+    fn bitcoin_hash(&self) -> BlockHash {
+        use consensus::encode::serialize;
+        BlockHash::hash(&serialize(self))
+    }
+}
+
+impl BitcoinHash<BlockHash> for Block {
+    fn bitcoin_hash(&self) -> BlockHash {
+        self.header.bitcoin_hash()
     }
 }
 

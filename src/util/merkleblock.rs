@@ -502,7 +502,7 @@ mod tests {
     use secp256k1::rand::prelude::*;
 
     use consensus::encode::{deserialize, serialize};
-    use util::hash::bitcoin_merkle_root;
+    use util::hash::{bitcoin_merkle_root, BitcoinHash};
     use util::merkleblock::{MerkleBlock, PartialMerkleTree};
     use Block;
 
