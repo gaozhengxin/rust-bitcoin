@@ -24,7 +24,7 @@ use util;
 use util::Error::{BlockBadTarget, BlockBadProofOfWork};
 use util::hash::{BitcoinHash, bitcoin_merkle_root};
 use hashes::{Hash, HashEngine};
-use hash_types::{Wtxid, BlockHash, TxMerkleNode, WitnessMerkleNode, WitnessCommitment, MTPHash, Reserved};
+use hash_types::{Wtxid, BlockHash, Txid, TxMerkleNode, WitnessMerkleNode, WitnessCommitment, MTPHash, Reserved};
 use util::uint::Uint256;
 use network::constants::Network;
 use blockdata::transaction::Transaction;
@@ -34,7 +34,7 @@ use VarInt;
 
 /// A block header, which contains all the block's information except
 /// the actual transactions
-#[derive(Copy, PartialEq, Eq, Clone, Debug)]
+#[derive(Copy, PartialEq, Eq, Clone, Debug, Default)]
 pub struct BlockHeader {
     /// The protocol version.
     pub version: u32,
@@ -322,6 +322,48 @@ impl ::consensus::Decodable for BlockHeader {
     }
 }
 
+impl ::consensus::Encodable for Block {
+    #[inline]
+    fn consensus_encode<S: ::std::io::Write>(
+        &self,
+        mut s: S,
+    ) -> Result<usize, ::consensus::encode::Error> {
+        let mut len = 0;
+        len += self.header.consensus_encode(&mut s)?;
+        len += self.txdata.consensus_encode(&mut s)?;
+        Ok(len)
+    }
+}
+
+impl ::consensus::Decodable for Block {
+    #[inline]
+    fn consensus_decode<D: ::std::io::Read>(
+        mut d: D,
+    ) -> Result<Block, ::consensus::encode::Error> {
+        println!("Decoda block!!!");
+
+        let mut buffer = Vec::new();
+        d.read_to_end(&mut buffer)?;
+        let len = buffer.len();
+        println!("buffer.len is {:?}", len);
+
+        use std::io::Cursor;
+        let mut d2 = Cursor::new(&mut buffer);
+
+        if (len > 4000000) {
+            println!("lalala");
+            return Ok(Block {
+                header: Decodable::consensus_decode(&mut d2)?,
+                txdata: Default::default(),
+            })
+        }
+        Ok(Block {
+            header: Decodable::consensus_decode(&mut d2)?,
+            txdata: Decodable::consensus_decode(&mut d2)?,
+        })
+    }
+}
+
 impl BitcoinHash<BlockHash> for BlockHeader {
     fn bitcoin_hash(&self) -> BlockHash {
         use consensus::encode::serialize;
@@ -335,11 +377,33 @@ impl BitcoinHash<BlockHash> for Block {
     }
 }
 
+/// BlockRes
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub struct BlockRes {
+    /// hash
+    pub hash: BlockHash,
+    /// version
+    pub version: u32,
+    /// prev blk hash
+    pub previousblockhash: BlockHash,
+    /// mkr
+    pub merkleroot: TxMerkleNode,
+    /// time
+    pub time: u32,
+    /// bits
+    pub bits: String,
+    /// nonce
+    pub nonce: u32,
+    /// tx
+    pub tx: Vec<Txid>,
+}
+
 impl_consensus_encoding!(BlockHeaderNonMTP, version, prev_blockhash, merkle_root, time, bits, nonce);
-impl_consensus_encoding!(Block, header, txdata);
+//impl_consensus_encoding!(Block, header, txdata);
 serde_struct_impl!(BlockHeader, version, prev_blockhash, merkle_root, time, bits, nonce, version_mtp, mtp_hash_value, reserved0, reserved1);
 serde_struct_impl!(BlockHeaderNonMTP, version, prev_blockhash, merkle_root, time, bits, nonce);
 serde_struct_impl!(Block, header, txdata);
+serde_struct_impl!(BlockRes, hash, version, previousblockhash, merkleroot, time, bits, nonce, tx);
 
 #[cfg(test)]
 mod tests {

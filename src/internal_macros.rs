@@ -286,7 +286,7 @@ macro_rules! serde_struct_impl {
                     where
                         A: $crate::serde::de::MapAccess<'de>,
                     {
-                        use $crate::serde::de::Error;
+                        //use $crate::serde::de::Error;
 
                         $(let mut $fe = None;)*
 
@@ -306,8 +306,14 @@ macro_rules! serde_struct_impl {
 
                         $(
                             let $fe = match $fe {
-                                Some(x) => x,
-                                None => return Err(A::Error::missing_field(stringify!($fe))),
+                                Some(x) => {x},
+                                // TODO
+                                None => {
+                                    use std::default::Default;
+                                    Default::default()
+                                },
+                                //None => {println!("lalalala, {:?}", $fe); return Err(A::Error::missing_field(stringify!($fe)))},
+                                //None => return Err(A::Error::missing_field(stringify!($fe))),
                             };
                         )*
 
