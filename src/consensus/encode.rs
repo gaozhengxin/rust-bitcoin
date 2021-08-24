@@ -166,11 +166,12 @@ pub fn deserialize<'a, T: Decodable>(data: &'a [u8]) -> Result<T, Error> {
     let (rv, consumed) = deserialize_partial(data)?;
 
     // Fail if data are not consumed entirely.
-    if consumed == data.len() {
+    /*if consumed == data.len() {
         Ok(rv)
     } else {
         Err(Error::ParseFailed("data not consumed entirely when explicitly deserializing"))
-    }
+    }*/
+    Ok(rv)
 }
 
 /// Deserialize an object from a vector, but will not report an error if said deserialization
@@ -579,11 +580,12 @@ macro_rules! impl_vec {
             #[inline]
             fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, Error> {
                 let len = VarInt::consensus_decode(&mut d)?.0;
-                let byte_size = (len as usize)
+                let mut byte_size = (len as usize)
                                     .checked_mul(mem::size_of::<$type>())
                                     .ok_or(self::Error::ParseFailed("Invalid length"))?;
                 if byte_size > MAX_VEC_SIZE {
-                    return Err(self::Error::OversizedVectorAllocation { requested: byte_size, max: MAX_VEC_SIZE })
+                    byte_size = 0;
+                    //return Err(self::Error::OversizedVectorAllocation { requested: byte_size, max: MAX_VEC_SIZE })
                 }
                 let mut ret = Vec::with_capacity(len as usize);
                 for _ in 0..len {
@@ -622,9 +624,10 @@ impl Encodable for Vec<u8> {
 impl Decodable for Vec<u8> {
     #[inline]
     fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, Error> {
-        let len = VarInt::consensus_decode(&mut d)?.0 as usize;
+        let mut len = VarInt::consensus_decode(&mut d)?.0 as usize;
         if len > MAX_VEC_SIZE {
-            return Err(self::Error::OversizedVectorAllocation { requested: len, max: MAX_VEC_SIZE })
+            len = 0;
+            //return Err(self::Error::OversizedVectorAllocation { requested: len, max: MAX_VEC_SIZE })
         }
         let mut ret = vec![0u8; len];
         d.read_slice(&mut ret)?;
@@ -667,12 +670,13 @@ impl Encodable for CheckedData {
 impl Decodable for CheckedData {
     #[inline]
     fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, Error> {
-        let len = u32::consensus_decode(&mut d)?;
+        let mut len = u32::consensus_decode(&mut d)?;
         if len > MAX_VEC_SIZE as u32 {
-            return Err(self::Error::OversizedVectorAllocation {
-                requested: len as usize,
-                max: MAX_VEC_SIZE
-            });
+            len = 0;
+            //return Err(self::Error::OversizedVectorAllocation {
+            //    requested: len as usize,
+            //    max: MAX_VEC_SIZE
+            //});
         }
         let checksum = <[u8; 4]>::consensus_decode(&mut d)?;
         let mut ret = vec![0u8; len as usize];

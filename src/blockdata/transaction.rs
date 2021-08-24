@@ -36,6 +36,17 @@ use consensus::{encode, serialize, Decodable, Encodable};
 use hash_types::*;
 use VarInt;
 
+/*
+/// TransactionRes
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub struct TransactionRes {
+    /// hex
+    pub hex: String,
+}
+
+serde_struct_impl!(TransactionRes, hash, version, previousblockhash, merkleroot, time, bits, nonce, tx);
+*/
+
 /// A reference to a transaction output
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub struct OutPoint {
@@ -227,7 +238,8 @@ serde_struct_impl!(TxOut, value, script_pubkey);
 // This is used as a "null txout" in consensus signing code
 impl Default for TxOut {
     fn default() -> TxOut {
-        TxOut { value: 0xffffffffffffffff, script_pubkey: Script::new() }
+        //TxOut { value: 0xffffffffffffffff, script_pubkey: Script::new() }
+        TxOut { value: 0, script_pubkey: Script::new() }
     }
 }
 
@@ -535,8 +547,10 @@ impl Decodable for Transaction {
     fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
         let version = u32::consensus_decode(&mut d)?;
         let input = Vec::<TxIn>::consensus_decode(&mut d)?;
+        let output = Decodable::consensus_decode(&mut d)?;
+        let lock_time = Decodable::consensus_decode(d)?;
         // segwit
-        if input.is_empty() {
+        /*if input.is_empty() {
             let segwit_flag = u8::consensus_decode(&mut d)?;
             match segwit_flag {
                 // BIP144 input witnesses
@@ -570,7 +584,15 @@ impl Decodable for Transaction {
                 output: Decodable::consensus_decode(&mut d)?,
                 lock_time: Decodable::consensus_decode(d)?,
             })
-        }
+        }*/
+        Ok(Transaction {
+            version: version,
+            input: input,
+            //output: Decodable::consensus_decode(&mut d)?,
+            //lock_time: Decodable::consensus_decode(d)?,
+            output: output,
+            lock_time: lock_time,
+        })
     }
 }
 

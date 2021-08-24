@@ -340,23 +340,13 @@ impl ::consensus::Decodable for Block {
     fn consensus_decode<D: ::std::io::Read>(
         mut d: D,
     ) -> Result<Block, ::consensus::encode::Error> {
-        println!("Decoda block!!!");
-
         let mut buffer = Vec::new();
         d.read_to_end(&mut buffer)?;
         let len = buffer.len();
-        println!("buffer.len is {:?}", len);
 
         use std::io::Cursor;
         let mut d2 = Cursor::new(&mut buffer);
 
-        if (len > 4000000) {
-            println!("lalala");
-            return Ok(Block {
-                header: Decodable::consensus_decode(&mut d2)?,
-                txdata: Default::default(),
-            })
-        }
         Ok(Block {
             header: Decodable::consensus_decode(&mut d2)?,
             txdata: Decodable::consensus_decode(&mut d2)?,
