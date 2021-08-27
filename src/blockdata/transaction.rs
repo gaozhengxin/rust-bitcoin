@@ -284,8 +284,10 @@ pub struct Transaction {
     pub input: Vec<TxIn>,
     /// List of outputs
     pub output: Vec<TxOut>,
+    /// raw
+    pub raw: Vec<u8>,
 }
-serde_struct_impl!(Transaction, version, lock_time, input, output);
+serde_struct_impl!(Transaction, version, lock_time, input, output, raw);
 
 impl Transaction {
     /// Computes a "normalized TXID" which does not include any signatures.
@@ -297,6 +299,7 @@ impl Transaction {
             lock_time: self.lock_time,
             input: self.input.iter().map(|txin| TxIn { script_sig: Script::new(), witness: vec![], .. *txin }).collect(),
             output: self.output.clone(),
+            raw: Vec::new(),
         };
         cloned_tx.txid().into()
     }
@@ -306,11 +309,14 @@ impl Transaction {
     /// this will give the correct txid (not including witnesses) while `wtxid`
     /// will also hash witnesses.
     pub fn txid(&self) -> Txid {
+        use std::io::Write;
         let mut enc = Txid::engine();
-        self.version.consensus_encode(&mut enc).unwrap();
-        self.input.consensus_encode(&mut enc).unwrap();
-        self.output.consensus_encode(&mut enc).unwrap();
-        self.lock_time.consensus_encode(&mut enc).unwrap();
+        // TODO lalalalalala
+        enc.write_all(&self.raw[..]);
+        //self.version.consensus_encode(&mut enc).unwrap();
+        //self.input.consensus_encode(&mut enc).unwrap();
+        //self.output.consensus_encode(&mut enc).unwrap();
+        //self.lock_time.consensus_encode(&mut enc).unwrap();
         Txid::from_engine(enc)
     }
 
@@ -355,6 +361,7 @@ impl Transaction {
             lock_time: self.lock_time,
             input: vec![],
             output: vec![],
+            raw: vec![],
         };
         // Add all inputs necessary..
         if anyone_can_pay {
@@ -517,7 +524,7 @@ impl Encodable for Transaction {
         &self,
         mut s: S,
     ) -> Result<usize, encode::Error> {
-        let mut len = 0;
+        /*let mut len = 0;
         len += self.version.consensus_encode(&mut s)?;
         let mut have_witness = self.input.is_empty();
         for input in &self.input {
@@ -539,12 +546,17 @@ impl Encodable for Transaction {
             }
         }
         len += self.lock_time.consensus_encode(s)?;
-        Ok(len)
+        Ok(len)*/
+        Ok(s.write(&self.raw[..]).unwrap())
     }
 }
 
 impl Decodable for Transaction {
-    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
+    fn consensus_decode<D: io::Read>(mut d0: D) -> Result<Self, encode::Error> {
+        let mut raw: Vec<u8> = Vec::new();
+        d0.read_to_end(&mut raw);
+        use std::io::Cursor;
+        let mut d = Cursor::new(&mut raw);
         let version = u32::consensus_decode(&mut d)?;
         let input = Vec::<TxIn>::consensus_decode(&mut d)?;
         let output = Decodable::consensus_decode(&mut d)?;
@@ -592,6 +604,7 @@ impl Decodable for Transaction {
             //lock_time: Decodable::consensus_decode(d)?,
             output: output,
             lock_time: lock_time,
+            raw: raw,
         })
     }
 }

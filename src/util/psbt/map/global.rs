@@ -135,6 +135,7 @@ impl Decodable for Global {
                             if pair.key.key.is_empty() {
                                 // there can only be one unsigned transaction
                                 if tx.is_none() {
+                                    let raw = pair.value.clone();
                                     let vlen: usize = pair.value.len();
                                     let mut decoder = Cursor::new(pair.value);
 
@@ -146,6 +147,7 @@ impl Decodable for Global {
                                         input: Decodable::consensus_decode(&mut decoder)?,
                                         output: Decodable::consensus_decode(&mut decoder)?,
                                         lock_time: Decodable::consensus_decode(&mut decoder)?,
+                                        raw: raw,
                                     });
 
                                     if decoder.position() != vlen as u64 {
